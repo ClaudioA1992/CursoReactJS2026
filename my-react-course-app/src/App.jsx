@@ -1,42 +1,79 @@
-import {useEffect, useState} from 'react'
-import './App.css'
+import React, {useEffect, useState} from 'react';
+import Search from "./components/Search.jsx";
+import Spinner from './components/Spinner.jsx';
 
-const Card = ({ title }) => {
+const API_BASE_URL = "https://api.themoviedb.org/3";
+const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
-    const [count, setCount] = useState(0);
-    const [hasLiked, setHasLiked] = useState(false);
-
-    useEffect(() => {
-        console.log(`${title} has been liked: ${hasLiked}`);
-    }, [hasLiked]);
-
-    useEffect(() => {
-        console.log('CARD RENDERED')
-    }, []);
-
-
-
-    return (
-    <div className="card" onClick={() => setCount(count + 1)}>
-      <h2>{title} - {count ? count : null}</h2>
-
-      <button onClick={() => { setHasLiked(!hasLiked) }}>
-          { hasLiked ? 'Liked' : 'Like' }
-      </button>
-    </div>
-  )
+const API_OPTIONS = {
+    method: 'GET',
+    headers: {
+        accept: 'application/json',
+        Authorization: `Bearer ${API_KEY}`
+    }
 }
 
 const App = () => {
 
+    const [searchTerm, setSearchTerm] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
+    const [movieList, setMovieList] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
 
-  return (
-    <div className="card-container">
-      <Card title="Star Wars" rating={5} isCool={true}/>
-      <Card title="Avatar" />
-      <Card title="The Lion King" />
-    </div>
-  )
+    const fetchMovies = async () => {
+
+        setIsLoading(true);
+        setErrorMessage('');
+
+        try {
+            const endpoint = `${API_BASE_URL}/discover/movie?sort_by=popularity.desc`;
+            const response = await fetch(endpoint, API_OPTIONS);
+            if(!response.ok) {
+                throw new Error('Failed to fetch movies');
+            }
+            const data = await response.json();
+            console.log(data);
+            if(data.Response === 'False') {
+                setErrorMessage(data.Error || 'Failed to fetch movies');
+                setMovieList([]);
+                return;
+            }
+
+            setMovieList(data.results || []);
+        } catch (error) {
+            console.error('Error fetching movies:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    useEffect(() => {
+        fetchMovies();
+    }, [])
+    
+    return (
+        <main>
+            <div className="pattern" />
+            <div className="wrapper">
+                <header>
+                    <img src="./hero-img.png" alt="Hero banner"/>
+                    <h1>Find <span className="text-gradient">Movies</span> you'll Enjoy Without the Hassle</h1>
+                    <Search searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+                </header>
+
+                <section className="all-movies"> 
+                    <h2 className="mt-[40px]">All Movies</h2>
+                    { isLoading ? (<Spinner />) 
+                    : errorMessage ? (<p className="text-red-500">{errorMessage}</p>) 
+                    : (<ul>
+                        {movieList.map((movie) => (
+                            <p key={movie.id} className="text-white">{movie.title}</p>
+                        ))}
+                    </ul>) }
+                </section>
+            </div>
+        </main>
+    )
 }
 
-export default App
+export default App;
